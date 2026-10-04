@@ -11,9 +11,14 @@ import {
   Milestone,
   Assignment,
   ResearchEntry,
+  SavedView,
   ThemeMode,
+  DayType,
+  DayPlan,
 } from '../types';
 import { createInitialPlannerData } from '../data/seedData';
+import { generateDateRange } from '../utils/dateUtils';
+import { addDays, format, parseISO } from 'date-fns';
 
 export interface PlannerStoreState extends PlannerData {
   // Actions
@@ -23,6 +28,8 @@ export interface PlannerStoreState extends PlannerData {
   setTaskHint: (date: string, taskId: string, hintLabel: string) => void;
   setFocusSubject: (date: string, subjectId: string | undefined) => void;
   bulkTickDay: (date: string, done: boolean) => void;
+  applyLabelToDateRange: (taskId: string, label: string, startDate: string, endDate: string) => void;
+  moveIncompleteToTomorrow: (currentDate: string) => { movedCount: number; tomorrowDate: string | null };
 
   // Categories
   addCategory: (category: Category) => void;
@@ -30,25 +37,40 @@ export interface PlannerStoreState extends PlannerData {
   deleteCategory: (categoryId: string) => void;
 
   // Tasks
-  addTaskTemplate: (task: TaskTemplate) => void;
+  addTaskTemplate: (task: TaskTemplate, defaultHint?: string) => void;
   updateTaskTemplate: (task: TaskTemplate) => void;
   deleteTaskTemplate: (taskId: string, keepHistory?: boolean) => void;
   reorderTaskTemplates: (tasks: TaskTemplate[]) => void;
+  toggleTaskActive: (taskId: string) => void;
 
   // Routine
   addRoutineSlot: (slot: RoutineSlot) => void;
   updateRoutineSlot: (slot: RoutineSlot) => void;
   deleteRoutineSlot: (slotId: string) => void;
   setRoutineSlots: (slots: RoutineSlot[]) => void;
+  duplicateRoutineSlot: (slotId: string) => void;
+  toggleSlotNotification: (slotId: string) => void;
+  copyWeekdayToWeekend: () => void;
+  reorderRoutineSlots: (dayType: DayType, newSlots: RoutineSlot[]) => void;
 
   // Subjects & Topics
-  addSubject: (subject: Subject) => void;
-  updateSubject: (subject: Subject) => void;
+  addSubject: (subject: Subject, syncTrackerFocus?: boolean) => void;
+  updateSubject: (subject: Subject, syncTrackerFocus?: boolean) => void;
   deleteSubject: (subjectId: string) => void;
   addTopic: (topic: Topic) => void;
+  bulkAddTopics: (subjectId: string, newTopics: Topic[]) => void;
   updateTopic: (topic: Topic) => void;
   deleteTopic: (topicId: string) => void;
+  reorderTopics: (subjectId: string, reorderedTopics: Topic[]) => void;
   toggleTopicField: (topicId: string, field: 'video' | 'code' | 'written') => void;
+  replanSubject: (
+    subjectId: string,
+    newStartDate: string,
+    newEndDate: string,
+    newPlannedVideoHours?: number,
+    redistributeTopics?: boolean,
+    cascadeSubsequent?: boolean
+  ) => void;
 
   // Milestones & Assignments
   addMilestone: (milestone: Milestone) => void;
@@ -62,10 +84,35 @@ export interface PlannerStoreState extends PlannerData {
   addOrUpdateResearchEntry: (entry: ResearchEntry) => void;
   deleteResearchEntry: (entryId: string) => void;
 
+  // Saved Views
+  addSavedView: (view: SavedView) => void;
+  updateSavedView: (view: SavedView) => void;
+  deleteSavedView: (viewId: string) => void;
+
+  // History Undo/Redo (up to 20 actions)
+  undoStack: PlannerSnapshot[];
+  redoStack: PlannerSnapshot[];
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+
   // Bulk & Maintenance
   resetToSeedData: () => void;
   clearAllData: () => void;
   importData: (data: PlannerData) => void;
+}
+
+export interface PlannerSnapshot {
+  dayPlans: Record<string, DayPlan>;
+  topics: Topic[];
+  assignments: Assignment[];
+  milestones: Milestone[];
+  researchEntries: ResearchEntry[];
+  routineSlots: RoutineSlot[];
+  taskTemplates: TaskTemplate[];
+  categories: Category[];
+  subjects: Subject[];
 }
 
 // Memory fallback for non-browser environments (e.g. testing or SSR)
@@ -94,15 +141,78 @@ const safeStorage = {
   },
 };
 
+function takeSnapshot(state: PlannerStoreState): PlannerSnapshot {
+  return {
+    dayPlans: state.dayPlans,
+    topics: state.topics,
+    assignments: state.assignments,
+    milestones: state.milestones,
+    researchEntries: state.researchEntries,
+    routineSlots: state.routineSlots,
+    taskTemplates: state.taskTemplates,
+    categories: state.categories,
+    subjects: state.subjects,
+  };
+}
+
+function pushSnapshot(state: PlannerStoreState) {
+  const currentSnapshot = takeSnapshot(state);
+  const nextStack = [...(state.undoStack || []), currentSnapshot];
+  if (nextStack.length > 20) {
+    nextStack.shift();
+  }
+  return {
+    undoStack: nextStack,
+    redoStack: [],
+    canUndo: true,
+    canRedo: false,
+  };
+}
+
 export const usePlannerStore = create<PlannerStoreState>()(
   persist(
     (set) => ({
       ...createInitialPlannerData(),
 
+      undoStack: [],
+      redoStack: [],
+      canUndo: false,
+      canRedo: false,
+
       setSettings: (newSettings) =>
-        set((state) => ({
-          settings: { ...state.settings, ...newSettings },
-        })),
+        set((state) => {
+          const updatedSettings = { ...state.settings, ...newSettings };
+          const updatedDayPlans = { ...state.dayPlans };
+
+          if (
+            (newSettings.startDate && newSettings.startDate !== state.settings.startDate) ||
+            (newSettings.endDate && newSettings.endDate !== state.settings.endDate)
+          ) {
+            const dateList = generateDateRange(updatedSettings.startDate, updatedSettings.endDate);
+            for (const d of dateList) {
+              if (!updatedDayPlans[d]) {
+                const subject = state.subjects.find((s) => d >= s.startDate && d <= s.endDate);
+                const focusSubjectId = subject?.id;
+                const overrides: Record<string, { hintLabel?: string; done: boolean }> = {};
+                for (const t of state.taskTemplates) {
+                  if (t.active) {
+                    overrides[t.id] = { done: false };
+                  }
+                }
+                updatedDayPlans[d] = {
+                  date: d,
+                  focusSubjectId,
+                  overrides,
+                };
+              }
+            }
+          }
+
+          return {
+            settings: updatedSettings,
+            dayPlans: updatedDayPlans,
+          };
+        }),
 
       setTheme: (theme) =>
         set((state) => ({
@@ -111,6 +221,7 @@ export const usePlannerStore = create<PlannerStoreState>()(
 
       toggleTaskDone: (date, taskId) =>
         set((state) => {
+          const history = pushSnapshot(state);
           const currentPlan = state.dayPlans[date] ?? {
             date,
             overrides: {},
@@ -165,6 +276,7 @@ export const usePlannerStore = create<PlannerStoreState>()(
           }
 
           return {
+            ...history,
             dayPlans: updatedDayPlans,
             researchEntries: updatedResearchEntries,
           };
@@ -172,10 +284,12 @@ export const usePlannerStore = create<PlannerStoreState>()(
 
       setTaskHint: (date, taskId, hintLabel) =>
         set((state) => {
+          const history = pushSnapshot(state);
           const currentPlan = state.dayPlans[date] ?? { date, overrides: {} };
           const currentOverride = currentPlan.overrides[taskId] ?? { done: false };
 
           return {
+            ...history,
             dayPlans: {
               ...state.dayPlans,
               [date]: {
@@ -194,8 +308,10 @@ export const usePlannerStore = create<PlannerStoreState>()(
 
       setFocusSubject: (date, subjectId) =>
         set((state) => {
+          const history = pushSnapshot(state);
           const currentPlan = state.dayPlans[date] ?? { date, overrides: {} };
           return {
+            ...history,
             dayPlans: {
               ...state.dayPlans,
               [date]: {
@@ -208,6 +324,7 @@ export const usePlannerStore = create<PlannerStoreState>()(
 
       bulkTickDay: (date, done) =>
         set((state) => {
+          const history = pushSnapshot(state);
           const currentPlan = state.dayPlans[date] ?? { date, overrides: {} };
           const newOverrides = { ...currentPlan.overrides };
 
@@ -221,6 +338,7 @@ export const usePlannerStore = create<PlannerStoreState>()(
           }
 
           return {
+            ...history,
             dayPlans: {
               ...state.dayPlans,
               [date]: {
@@ -230,6 +348,85 @@ export const usePlannerStore = create<PlannerStoreState>()(
             },
           };
         }),
+
+      applyLabelToDateRange: (taskId, label, startDate, endDate) =>
+        set((state) => {
+          const history = pushSnapshot(state);
+          const dates = generateDateRange(startDate, endDate);
+          const updatedDayPlans = { ...state.dayPlans };
+
+          for (const d of dates) {
+            const currentPlan = updatedDayPlans[d] ?? { date: d, overrides: {} };
+            const currentOverride = currentPlan.overrides[taskId] ?? { done: false };
+
+            updatedDayPlans[d] = {
+              ...currentPlan,
+              overrides: {
+                ...currentPlan.overrides,
+                [taskId]: {
+                  ...currentOverride,
+                  hintLabel: label,
+                },
+              },
+            };
+          }
+
+          return { ...history, dayPlans: updatedDayPlans };
+        }),
+
+      moveIncompleteToTomorrow: (currentDate) => {
+        let movedCount = 0;
+        let tomorrowDate: string | null = null;
+
+        set((state) => {
+          const currentPlan = state.dayPlans[currentDate];
+          if (!currentPlan) return state;
+
+          const parsed = parseISO(currentDate);
+          const tomorrowStr = format(addDays(parsed, 1), 'yyyy-MM-dd');
+          tomorrowDate = tomorrowStr;
+
+          const tomorrowPlan = state.dayPlans[tomorrowStr];
+          if (!tomorrowPlan) {
+            return state;
+          }
+
+          const history = pushSnapshot(state);
+          const updatedTomorrowOverrides = { ...tomorrowPlan.overrides };
+
+          for (const task of state.taskTemplates) {
+            if (task.active) {
+              const wasDone = currentPlan.overrides[task.id]?.done ?? false;
+              if (!wasDone) {
+                movedCount++;
+                const existingTomorrow = updatedTomorrowOverrides[task.id] ?? { done: false };
+                const currentHint = currentPlan.overrides[task.id]?.hintLabel;
+                const prefix = currentHint ? `[Carried] ${currentHint}` : `[Carried] ${task.name}`;
+                updatedTomorrowOverrides[task.id] = {
+                  ...existingTomorrow,
+                  hintLabel: existingTomorrow.hintLabel?.includes('[Carried]')
+                    ? existingTomorrow.hintLabel
+                    : prefix,
+                  done: false,
+                };
+              }
+            }
+          }
+
+          return {
+            ...history,
+            dayPlans: {
+              ...state.dayPlans,
+              [tomorrowStr]: {
+                ...tomorrowPlan,
+                overrides: updatedTomorrowOverrides,
+              },
+            },
+          };
+        });
+
+        return { movedCount, tomorrowDate };
+      },
 
       addCategory: (category) =>
         set((state) => ({
@@ -248,9 +445,36 @@ export const usePlannerStore = create<PlannerStoreState>()(
           categories: state.categories.filter((c) => c.id !== categoryId),
         })),
 
-      addTaskTemplate: (task) =>
+      addTaskTemplate: (task, defaultHint) =>
+        set((state) => {
+          const updatedDayPlans = { ...state.dayPlans };
+          const hint = defaultHint ?? task.name;
+          for (const date in updatedDayPlans) {
+            const plan = updatedDayPlans[date];
+            if (!plan.overrides[task.id]) {
+              updatedDayPlans[date] = {
+                ...plan,
+                overrides: {
+                  ...plan.overrides,
+                  [task.id]: {
+                    hintLabel: hint,
+                    done: false,
+                  },
+                },
+              };
+            }
+          }
+          return {
+            taskTemplates: [...state.taskTemplates, task],
+            dayPlans: updatedDayPlans,
+          };
+        }),
+
+      toggleTaskActive: (taskId) =>
         set((state) => ({
-          taskTemplates: [...state.taskTemplates, task],
+          taskTemplates: state.taskTemplates.map((t) =>
+            t.id === taskId ? { ...t, active: !t.active } : t
+          ),
         })),
 
       updateTaskTemplate: (updatedTask) =>
@@ -299,22 +523,125 @@ export const usePlannerStore = create<PlannerStoreState>()(
           routineSlots: state.routineSlots.filter((s) => s.id !== slotId),
         })),
 
+      duplicateRoutineSlot: (slotId) =>
+        set((state) => {
+          const index = state.routineSlots.findIndex((s) => s.id === slotId);
+          if (index === -1) return state;
+          const target = state.routineSlots[index];
+          const newSlot: RoutineSlot = {
+            ...target,
+            id: `slot-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            title: `${target.title} (Copy)`,
+          };
+          const updated = [...state.routineSlots];
+          updated.splice(index + 1, 0, newSlot);
+          return { routineSlots: updated };
+        }),
+
+      toggleSlotNotification: (slotId) =>
+        set((state) => ({
+          routineSlots: state.routineSlots.map((s) =>
+            s.id === slotId
+              ? {
+                  ...s,
+                  notificationEnabled: s.notificationEnabled === false ? true : false,
+                }
+              : s
+          ),
+        })),
+
+      copyWeekdayToWeekend: () =>
+        set((state) => {
+          const weekdaySlots = state.routineSlots.filter((s) => s.dayType === 'weekday');
+          const newWeekendSlots: RoutineSlot[] = weekdaySlots.map((s) => ({
+            ...s,
+            id: `slot-we-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            dayType: 'weekend',
+          }));
+          const nonWeekendSlots = state.routineSlots.filter((s) => s.dayType !== 'weekend');
+          return { routineSlots: [...nonWeekendSlots, ...newWeekendSlots] };
+        }),
+
+      reorderRoutineSlots: (dayType, newSlots) =>
+        set((state) => {
+          const otherSlots = state.routineSlots.filter((s) => s.dayType !== dayType);
+          return { routineSlots: [...otherSlots, ...newSlots] };
+        }),
+
       setRoutineSlots: (slots) =>
         set(() => ({
           routineSlots: slots,
         })),
 
-      addSubject: (subject) =>
-        set((state) => ({
-          subjects: [...state.subjects, subject],
-        })),
+      addSubject: (subject, syncTrackerFocus = false) =>
+        set((state) => {
+          let updatedDayPlans = state.dayPlans;
+          if (syncTrackerFocus) {
+            updatedDayPlans = { ...state.dayPlans };
+            const dates = generateDateRange(subject.startDate, subject.endDate);
+            for (const d of dates) {
+              if (updatedDayPlans[d]) {
+                const plan = updatedDayPlans[d];
+                updatedDayPlans[d] = {
+                  ...plan,
+                  focusSubjectId: subject.id,
+                  overrides: {
+                    ...plan.overrides,
+                    'task-study-1': {
+                      ...plan.overrides['task-study-1'],
+                      hintLabel: `Study · ${subject.name}`,
+                      done: plan.overrides['task-study-1']?.done ?? false,
+                    },
+                    'task-study-2': {
+                      ...plan.overrides['task-study-2'],
+                      hintLabel: `Practice · ${subject.name}`,
+                      done: plan.overrides['task-study-2']?.done ?? false,
+                    },
+                  },
+                };
+              }
+            }
+          }
+          return {
+            subjects: [...state.subjects, subject],
+            dayPlans: updatedDayPlans,
+          };
+        }),
 
-      updateSubject: (updatedSubject) =>
-        set((state) => ({
-          subjects: state.subjects.map((s) =>
-            s.id === updatedSubject.id ? updatedSubject : s
-          ),
-        })),
+      updateSubject: (updatedSubject, syncTrackerFocus = false) =>
+        set((state) => {
+          let updatedDayPlans = state.dayPlans;
+          if (syncTrackerFocus) {
+            updatedDayPlans = { ...state.dayPlans };
+            const dates = generateDateRange(updatedSubject.startDate, updatedSubject.endDate);
+            for (const d of dates) {
+              if (updatedDayPlans[d]) {
+                const plan = updatedDayPlans[d];
+                updatedDayPlans[d] = {
+                  ...plan,
+                  focusSubjectId: updatedSubject.id,
+                  overrides: {
+                    ...plan.overrides,
+                    'task-study-1': {
+                      ...plan.overrides['task-study-1'],
+                      hintLabel: `Study · ${updatedSubject.name}`,
+                      done: plan.overrides['task-study-1']?.done ?? false,
+                    },
+                    'task-study-2': {
+                      ...plan.overrides['task-study-2'],
+                      hintLabel: `Practice · ${updatedSubject.name}`,
+                      done: plan.overrides['task-study-2']?.done ?? false,
+                    },
+                  },
+                };
+              }
+            }
+          }
+          return {
+            subjects: state.subjects.map((s) => (s.id === updatedSubject.id ? updatedSubject : s)),
+            dayPlans: updatedDayPlans,
+          };
+        }),
 
       deleteSubject: (subjectId) =>
         set((state) => ({
@@ -327,6 +654,11 @@ export const usePlannerStore = create<PlannerStoreState>()(
           topics: [...state.topics, topic],
         })),
 
+      bulkAddTopics: (_subjectId, newTopics) =>
+        set((state) => ({
+          topics: [...state.topics, ...newTopics],
+        })),
+
       updateTopic: (updatedTopic) =>
         set((state) => ({
           topics: state.topics.map((t) => (t.id === updatedTopic.id ? updatedTopic : t)),
@@ -337,12 +669,144 @@ export const usePlannerStore = create<PlannerStoreState>()(
           topics: state.topics.filter((t) => t.id !== topicId),
         })),
 
+      reorderTopics: (subjectId, reorderedForSubject) =>
+        set((state) => {
+          const otherTopics = state.topics.filter((t) => t.subjectId !== subjectId);
+          return {
+            topics: [...otherTopics, ...reorderedForSubject],
+          };
+        }),
+
       toggleTopicField: (topicId, field) =>
         set((state) => ({
           topics: state.topics.map((topic) =>
             topic.id === topicId ? { ...topic, [field]: !topic[field] } : topic
           ),
         })),
+
+      replanSubject: (
+        subjectId,
+        newStartDate,
+        newEndDate,
+        newPlannedVideoHours,
+        redistributeTopics = true,
+        cascadeSubsequent = false
+      ) =>
+        set((state) => {
+          const targetSubjectIndex = state.subjects.findIndex((s) => s.id === subjectId);
+          if (targetSubjectIndex === -1) return state;
+
+          const targetSubject = state.subjects[targetSubjectIndex];
+          const newVideoHours =
+            newPlannedVideoHours !== undefined
+              ? Math.max(0, newPlannedVideoHours)
+              : targetSubject.plannedVideoHours;
+
+          let updatedSubjects = [...state.subjects];
+          let updatedTopics = [...state.topics];
+          const updatedDayPlans = { ...state.dayPlans };
+
+          // 1. Update the target subject
+          updatedSubjects[targetSubjectIndex] = {
+            ...targetSubject,
+            startDate: newStartDate,
+            endDate: newEndDate,
+            plannedVideoHours: newVideoHours,
+          };
+
+          // 2. Cascade subsequent subjects if requested
+          if (cascadeSubsequent) {
+            let previousEnd = newEndDate;
+            for (let i = targetSubjectIndex + 1; i < updatedSubjects.length; i++) {
+              const sub = updatedSubjects[i];
+              const oldDates = generateDateRange(sub.startDate, sub.endDate);
+              const duration = Math.max(1, oldDates.length);
+
+              const nextStart = format(addDays(parseISO(previousEnd), 1), 'yyyy-MM-dd');
+              const nextEnd = format(addDays(parseISO(nextStart), duration - 1), 'yyyy-MM-dd');
+
+              updatedSubjects[i] = {
+                ...sub,
+                startDate: nextStart,
+                endDate: nextEnd,
+              };
+
+              previousEnd = nextEnd;
+            }
+          }
+
+          // 3. Redistribute topics across new date ranges if requested
+          if (redistributeTopics) {
+            const subjectsToRedistribute = cascadeSubsequent
+              ? updatedSubjects.slice(targetSubjectIndex)
+              : [updatedSubjects[targetSubjectIndex]];
+
+            for (const sub of subjectsToRedistribute) {
+              const subTopics = updatedTopics.filter((t) => t.subjectId === sub.id);
+              if (subTopics.length > 0) {
+                const availDates = generateDateRange(sub.startDate, sub.endDate);
+                const dateCount = availDates.length;
+
+                const redistributed = subTopics.map((topic, idx) => {
+                  let targetDate = sub.startDate;
+                  if (dateCount > 0) {
+                    const step = (dateCount - 1) / Math.max(1, subTopics.length - 1);
+                    const dateIdx = Math.min(dateCount - 1, Math.round(idx * step));
+                    targetDate = availDates[dateIdx];
+                  }
+                  return {
+                    ...topic,
+                    targetDate,
+                  };
+                });
+
+                updatedTopics = updatedTopics.map((t) => {
+                  const found = redistributed.find((r) => r.id === t.id);
+                  return found || t;
+                });
+              }
+            }
+          }
+
+          // 4. Update DayPlans focusSubjectId and study hints
+          const subjectsToSync = cascadeSubsequent
+            ? updatedSubjects.slice(targetSubjectIndex)
+            : [updatedSubjects[targetSubjectIndex]];
+
+          for (const sub of subjectsToSync) {
+            const dates = generateDateRange(sub.startDate, sub.endDate);
+            for (const d of dates) {
+              const currentPlan = updatedDayPlans[d] ?? {
+                date: d,
+                focusSubjectId: sub.id,
+                overrides: {},
+              };
+              updatedDayPlans[d] = {
+                ...currentPlan,
+                focusSubjectId: sub.id,
+                overrides: {
+                  ...currentPlan.overrides,
+                  'task-study-1': {
+                    ...currentPlan.overrides['task-study-1'],
+                    hintLabel: `Study · ${sub.name}`,
+                    done: currentPlan.overrides['task-study-1']?.done ?? false,
+                  },
+                  'task-study-2': {
+                    ...currentPlan.overrides['task-study-2'],
+                    hintLabel: `Practice · ${sub.name}`,
+                    done: currentPlan.overrides['task-study-2']?.done ?? false,
+                  },
+                },
+              };
+            }
+          }
+
+          return {
+            subjects: updatedSubjects,
+            topics: updatedTopics,
+            dayPlans: updatedDayPlans,
+          };
+        }),
 
       addMilestone: (milestone) =>
         set((state) => ({
@@ -394,8 +858,31 @@ export const usePlannerStore = create<PlannerStoreState>()(
           researchEntries: state.researchEntries.filter((e) => e.id !== entryId),
         })),
 
+      addSavedView: (view) =>
+        set((state) => ({
+          savedViews: [...state.savedViews, view],
+        })),
+
+      updateSavedView: (updatedView) =>
+        set((state) => ({
+          savedViews: state.savedViews.map((v) =>
+            v.id === updatedView.id ? updatedView : v
+          ),
+        })),
+
+      deleteSavedView: (viewId) =>
+        set((state) => ({
+          savedViews: state.savedViews.filter((v) => v.id !== viewId),
+        })),
+
       resetToSeedData: () =>
-        set(() => createInitialPlannerData()),
+        set(() => ({
+          ...createInitialPlannerData(),
+          undoStack: [],
+          redoStack: [],
+          canUndo: false,
+          canRedo: false,
+        })),
 
       clearAllData: () =>
         set(() => ({
@@ -420,18 +907,62 @@ export const usePlannerStore = create<PlannerStoreState>()(
           assignments: [],
           researchEntries: [],
           savedViews: [],
+          undoStack: [],
+          redoStack: [],
+          canUndo: false,
+          canRedo: false,
         })),
 
       importData: (importedData) =>
         set(() => ({
           ...importedData,
           schemaVersion: 1,
+          undoStack: [],
+          redoStack: [],
+          canUndo: false,
+          canRedo: false,
         })),
+
+      undo: () =>
+        set((state) => {
+          if (!state.undoStack || state.undoStack.length === 0) return state;
+          const currentSnapshot = takeSnapshot(state);
+          const previousSnapshot = state.undoStack[state.undoStack.length - 1];
+          const newUndoStack = state.undoStack.slice(0, -1);
+          const newRedoStack = [...(state.redoStack || []), currentSnapshot];
+          return {
+            ...previousSnapshot,
+            undoStack: newUndoStack,
+            redoStack: newRedoStack,
+            canUndo: newUndoStack.length > 0,
+            canRedo: true,
+          };
+        }),
+
+      redo: () =>
+        set((state) => {
+          if (!state.redoStack || state.redoStack.length === 0) return state;
+          const currentSnapshot = takeSnapshot(state);
+          const nextSnapshot = state.redoStack[state.redoStack.length - 1];
+          const newRedoStack = state.redoStack.slice(0, -1);
+          const newUndoStack = [...(state.undoStack || []), currentSnapshot];
+          return {
+            ...nextSnapshot,
+            undoStack: newUndoStack,
+            redoStack: newRedoStack,
+            canUndo: true,
+            canRedo: newRedoStack.length > 0,
+          };
+        }),
     }),
     {
       name: 'studyflow-planner-storage',
       version: 1,
       storage: createJSONStorage(() => safeStorage),
+      partialize: (state) => {
+        const { undoStack: _u, redoStack: _r, canUndo: _cu, canRedo: _cr, ...persisted } = state;
+        return persisted;
+      },
       migrate: (persistedState: unknown, version: number) => {
         if (version === 0) {
           return persistedState as PlannerStoreState;

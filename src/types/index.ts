@@ -19,6 +19,8 @@ export interface Settings {
   researchHoursPerSession: number; // default 2
   strongDayThreshold: number; // default 80 (represents 80%)
   weekStartsOn: 0 | 1; // 0 for Sunday, 1 for Monday (default 1)
+  notificationsEnabled?: boolean; // Global routine notifications toggle
+  soundEnabled?: boolean; // Audio chime toggle
 }
 
 export interface Category {
@@ -31,6 +33,7 @@ export interface TaskTemplate {
   id: string;
   name: string;
   categoryId: string;
+  colour?: string; // Optional custom color override (defaults to category color)
   order: number;
   active: boolean;
   isStudy?: boolean;
@@ -46,6 +49,7 @@ export interface RoutineSlot {
   categoryId: string;
   linkedTaskTemplateId?: string;
   notes?: string;
+  notificationEnabled?: boolean; // User can turn notification on or off for this slot
 }
 
 export interface Subject {
@@ -55,6 +59,7 @@ export interface Subject {
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   plannedVideoHours: number;
+  testDescription?: string;
   notes?: string;
 }
 

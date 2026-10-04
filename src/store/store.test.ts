@@ -63,4 +63,56 @@ describe('usePlannerStore', () => {
     store.resetToSeedData();
     expect(usePlannerStore.getState().taskTemplates.length).toBe(9);
   });
+
+  it('duplicates a routine slot', () => {
+    const store = usePlannerStore.getState();
+    const initialSlots = store.routineSlots.length;
+    const targetSlot = store.routineSlots[0];
+
+    store.duplicateRoutineSlot(targetSlot.id);
+    const updatedSlots = usePlannerStore.getState().routineSlots;
+    expect(updatedSlots.length).toBe(initialSlots + 1);
+    expect(updatedSlots[1].title).toBe(`${targetSlot.title} (Copy)`);
+    expect(updatedSlots[1].id).not.toBe(targetSlot.id);
+  });
+
+  it('copies weekday routine slots to weekend', () => {
+    const store = usePlannerStore.getState();
+    const weekdayCount = store.routineSlots.filter((s) => s.dayType === 'weekday').length;
+
+    store.copyWeekdayToWeekend();
+    const updatedSlots = usePlannerStore.getState().routineSlots;
+    const newWeekendCount = updatedSlots.filter((s) => s.dayType === 'weekend').length;
+    expect(newWeekendCount).toBe(weekdayCount);
+  });
+
+  it('reorders routine slots for a specific day type', () => {
+    const store = usePlannerStore.getState();
+    const weekdaySlots = store.routineSlots.filter((s) => s.dayType === 'weekday');
+    const reversed = [...weekdaySlots].reverse();
+
+    store.reorderRoutineSlots('weekday', reversed);
+    const updatedWeekday = usePlannerStore
+      .getState()
+      .routineSlots.filter((s) => s.dayType === 'weekday');
+
+    expect(updatedWeekday[0].id).toBe(reversed[0].id);
+  });
+
+  it('adds, updates, and deletes categories', () => {
+    const store = usePlannerStore.getState();
+    const initialCount = store.categories.length;
+
+    const newCat = { id: 'cat-test', name: 'Meditation', colour: '#14b8a6' };
+    store.addCategory(newCat);
+    expect(usePlannerStore.getState().categories.length).toBe(initialCount + 1);
+
+    store.updateCategory({ ...newCat, name: 'Mindfulness' });
+    expect(usePlannerStore.getState().categories.find((c) => c.id === 'cat-test')?.name).toBe(
+      'Mindfulness'
+    );
+
+    store.deleteCategory('cat-test');
+    expect(usePlannerStore.getState().categories.length).toBe(initialCount);
+  });
 });

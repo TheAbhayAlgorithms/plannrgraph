@@ -6,6 +6,7 @@ import {
   addDays,
   isWeekend as dateFnsIsWeekend,
   differenceInMinutes,
+  differenceInCalendarDays,
   parse,
 } from 'date-fns';
 import { DayType } from '../types';
@@ -44,6 +45,14 @@ export function isFutureDate(dateStr: string, todayStr: string = getTodayDateStr
 export function getDayType(dateStr: string): DayType {
   const date = parseISO(dateStr);
   return dateFnsIsWeekend(date) ? 'weekend' : 'weekday';
+}
+
+/**
+ * Calculates total inclusive days between start and end date strings.
+ */
+export function calculateDaysBetween(startDateStr: string, endDateStr: string): number {
+  if (!startDateStr || !endDateStr || startDateStr > endDateStr) return 0;
+  return differenceInCalendarDays(parseISO(endDateStr), parseISO(startDateStr)) + 1;
 }
 
 /**
@@ -106,3 +115,21 @@ export function formatDisplayDate(dateStr: string): string {
     return dateStr;
   }
 }
+
+/**
+ * Calculates calendar days remaining until deadline.
+ * Positive = days left in future
+ * 0 = due today
+ * Negative = overdue days
+ */
+export function calculateDaysLeft(
+  deadlineStr: string,
+  todayStr: string = getTodayDateString()
+): number {
+  try {
+    return differenceInCalendarDays(parseISO(deadlineStr), parseISO(todayStr));
+  } catch {
+    return 0;
+  }
+}
+
