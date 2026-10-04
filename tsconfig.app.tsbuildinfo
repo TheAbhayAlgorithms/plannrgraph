@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/data/seeddata.ts","./src/store/store.test.ts","./src/store/useplannerstore.ts","./src/types/index.ts","./src/utils/calculations.test.ts","./src/utils/calculations.ts","./src/utils/dateutils.ts"],"version":"5.9.3"}
