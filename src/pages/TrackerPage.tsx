@@ -7,6 +7,7 @@ import { EditHintModal } from '../components/tracker/EditHintModal';
 import { ApplyRangeLabelModal } from '../components/tracker/ApplyRangeLabelModal';
 import { GlobalFilterBar, GlobalFilterValues } from '../components/common/GlobalFilterBar';
 import { showToast } from '../store/useToastStore';
+import { triggerCelebrationConfetti } from "../utils/confettiUtils";
 import {
   CalendarDays,
   Table as TableIcon,
@@ -100,6 +101,27 @@ export const TrackerPage: React.FC = () => {
     toggleTaskDone(date, taskId);
     const task = taskTemplates.find((t) => t.id === taskId);
     const wasDone = dayPlans[date]?.overrides[taskId]?.done ?? false;
+
+    // Trigger celebration when all active tasks for the day are checked
+    if (!wasDone) {
+      const activeTasks = taskTemplates.filter((t) => t.active);
+      const nextPlan = usePlannerStore.getState().dayPlans[date];
+      const isNowAllDone =
+        activeTasks.length > 0 &&
+        activeTasks.every((t) => nextPlan?.overrides[t.id]?.done);
+
+      if (isNowAllDone) {
+        triggerCelebrationConfetti();
+        showToast({
+          type: 'success',
+          title: `🎉 100% Day Complete!`,
+          message: `All routine targets accomplished for ${formatDisplayDate(date)}!`,
+          duration: 3500,
+        });
+        return;
+      }
+    }
+
     showToast({
       type: wasDone ? 'info' : 'success',
       title: wasDone ? `Marked "${task?.name}" pending` : `Completed "${task?.name}"`,
@@ -141,9 +163,12 @@ export const TrackerPage: React.FC = () => {
 
   const handleBulkTick = (date: string, done: boolean) => {
     bulkTickDay(date, done);
+    if (done) {
+      triggerCelebrationConfetti();
+    }
     showToast({
       type: done ? 'success' : 'info',
-      title: done ? `All tasks ticked for ${formatDisplayDate(date)}` : `All tasks reset for ${formatDisplayDate(date)}`,
+      title: done ? `🎉 All tasks ticked for ${formatDisplayDate(date)}` : `All tasks reset for ${formatDisplayDate(date)}`,
       duration: 2500,
     });
   };
@@ -171,18 +196,15 @@ export const TrackerPage: React.FC = () => {
       {/* Top Controls & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <CalendarDays className="w-6 h-6 text-emerald-500" />
-              Daily Routine Tracker
+              Daily Tracker
             </h1>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-              Live Grid
-            </span>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Check off daily habits, routine blocks, and study goals.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {filteredDates.length} of {allDates.length} days scheduled ({settings.startDate} to {settings.endDate}) across {filteredTasks.length} active columns.
-          </p>
         </div>
 
         {/* Action Controls */}

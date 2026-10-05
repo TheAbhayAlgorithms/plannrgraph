@@ -26,11 +26,11 @@ export const BottomNav: React.FC = () => {
   ];
 
   const moreTabs = [
-    { label: 'Study Plan', path: '/study-plan', icon: GraduationCap, badge: 'M6' },
-    { label: 'Projects & Milestones', path: '/projects', icon: FolderKanban, badge: 'M7' },
-    { label: 'Research Log', path: '/research', icon: FlaskConical, badge: 'M8' },
-    { label: 'Dashboard & Charts', path: '/dashboard', icon: BarChart3, badge: 'M9' },
-    { label: 'Settings & Data', path: '/settings', icon: Settings, badge: 'M11' },
+    { label: 'Study Plan', path: '/study-plan', icon: GraduationCap },
+    { label: 'Projects & Milestones', path: '/projects', icon: FolderKanban },
+    { label: 'Research Log', path: '/research', icon: FlaskConical },
+    { label: 'Dashboard & Charts', path: '/dashboard', icon: BarChart3 },
+    { label: 'Settings & Data', path: '/settings', icon: Settings },
   ];
 
   const isMoreActive = moreTabs.some((t) => t.path === location.pathname);
@@ -75,13 +75,8 @@ export const BottomNav: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
-                      <span>{item.label}</span>
+                      <span className="font-medium">{item.label}</span>
                     </div>
-                    {item.badge && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400">
-                        {item.badge}
-                      </span>
-                    )}
                   </NavLink>
                 );
               })}

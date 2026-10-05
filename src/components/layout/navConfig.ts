@@ -31,18 +31,16 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'routine',
-    label: 'Routine Editor',
+    label: 'Daily Routine',
     path: '/routine',
     icon: Clock,
-    badge: 'M2',
     group: 'tracker',
   },
   {
     id: 'tasks',
-    label: 'Task Manager',
+    label: 'Tasks & Habits',
     path: '/tasks',
     icon: ListTodo,
-    badge: 'M3',
     group: 'tracker',
   },
 
@@ -52,7 +50,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Subjects & Topics',
     path: '/subjects',
     icon: BookOpen,
-    badge: 'M5',
     group: 'academic',
   },
   {
@@ -60,7 +57,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Study Plan',
     path: '/study-plan',
     icon: GraduationCap,
-    badge: 'M6',
     group: 'academic',
   },
   {
@@ -68,7 +64,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Projects & Milestones',
     path: '/projects',
     icon: FolderKanban,
-    badge: 'M7',
     group: 'academic',
   },
   {
@@ -76,7 +71,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Research Log',
     path: '/research',
     icon: FlaskConical,
-    badge: 'M8',
     group: 'academic',
   },
 
@@ -86,15 +80,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Dashboard & Charts',
     path: '/dashboard',
     icon: BarChart3,
-    badge: 'M9',
     group: 'insights',
   },
   {
     id: 'settings',
-    label: 'Settings & Data',
+    label: 'Settings',
     path: '/settings',
     icon: Settings,
-    badge: 'M11',
     group: 'insights',
   },
 ];

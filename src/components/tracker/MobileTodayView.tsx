@@ -1,17 +1,18 @@
-import React, { useRef } from 'react';
-import { TaskTemplate, Subject, Category, RoutineSlot, DayPlan } from '../../types';
+import React from 'react';
+import { TaskTemplate, Category, Subject, RoutineSlot, DayPlan } from '../../types';
 import { formatDisplayDate, getDayType, isTodayDate } from '../../utils/dateUtils';
 import { calculateDayMetrics } from '../../utils/calculations';
 import {
   ChevronLeft,
   ChevronRight,
-  CheckCircle2,
-  Clock,
   Sparkles,
   Flame,
+  CheckCircle2,
+  Clock,
   GraduationCap,
   FlaskConical,
   Edit2,
+  Trophy,
 } from 'lucide-react';
 
 interface MobileTodayViewProps {
@@ -22,10 +23,10 @@ interface MobileTodayViewProps {
   categories: Category[];
   subjects: Subject[];
   routineSlots: RoutineSlot[];
-  dayPlan?: DayPlan;
+  dayPlan: DayPlan | undefined;
   studyHoursWeekday: number;
   studyHoursWeekend: number;
-  onDateChange: (newDate: string) => void;
+  onDateChange: (date: string) => void;
   onToggleTask: (date: string, taskId: string) => void;
   onEditHint: (date: string, taskId: string, taskName: string, currentHint: string) => void;
 }
@@ -45,18 +46,10 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
   onToggleTask,
   onEditHint,
 }) => {
-  const touchStartXRef = useRef<number | null>(null);
-
-  const currentIndex = dates.indexOf(currentDate);
-  const canGoPrev = currentIndex > 0;
-  const canGoNext = currentIndex < dates.length - 1;
-
   const isToday = isTodayDate(currentDate, todayStr);
   const dayType = getDayType(currentDate);
-  const focusSubject = subjects.find((s) => s.id === dayPlan?.focusSubjectId);
 
-  // Filter slots for this dayType
-  const relevantRoutineSlots = routineSlots.filter((s) => s.dayType === dayType);
+  const focusSubject = subjects.find((s) => s.id === dayPlan?.focusSubjectId);
 
   const metrics = calculateDayMetrics(
     currentDate,
@@ -67,6 +60,15 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
     studyHoursWeekend
   );
 
+  const isAllDone = metrics.totalTasks > 0 && metrics.doneCount === metrics.totalTasks;
+
+  // Filter routine slots for current dayType
+  const relevantRoutineSlots = routineSlots.filter((slot) => slot.dayType === dayType);
+
+  const currentIndex = dates.indexOf(currentDate);
+  const canGoPrev = currentIndex > 0;
+  const canGoNext = currentIndex < dates.length - 1;
+
   const handlePrev = () => {
     if (canGoPrev) onDateChange(dates[currentIndex - 1]);
   };
@@ -75,33 +77,10 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
     if (canGoNext) onDateChange(dates[currentIndex + 1]);
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartXRef.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartXRef.current === null) return;
-    const diff = touchStartXRef.current - e.changedTouches[0].clientX;
-    touchStartXRef.current = null;
-
-    // Swipe left = Next day
-    if (diff > 50 && canGoNext) {
-      handleNext();
-    }
-    // Swipe right = Prev day
-    else if (diff < -50 && canGoPrev) {
-      handlePrev();
-    }
-  };
-
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      className="space-y-4 select-none"
-    >
-      {/* Date Switcher Bar */}
-      <div className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c121e] shadow-sm">
+    <div className="space-y-4">
+      {/* Date Header with Prev / Next */}
+      <div className="flex items-center justify-between p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0c121e] shadow-xs">
         <button
           onClick={handlePrev}
           disabled={!canGoPrev}
@@ -117,7 +96,7 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
               {formatDisplayDate(currentDate)}
             </span>
             {isToday && (
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.2 rounded bg-emerald-500 text-white shadow-sm">
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.2 rounded bg-emerald-500 text-white shadow-xs">
                 Today
               </span>
             )}
@@ -146,18 +125,40 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
         </button>
       </div>
 
+      {/* 100% All Done Celebration Banner */}
+      {isAllDone && (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-amber-500/15 border border-emerald-500/30 flex items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xl bg-emerald-500 text-white shadow-xs">
+              <Trophy className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                All Tasks Completed!
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                100% daily targets achieved. Outstanding work!
+              </div>
+            </div>
+          </div>
+          <span className="px-2 py-0.5 text-xs font-extrabold rounded-full bg-emerald-500 text-white shadow-xs">
+            100%
+          </span>
+        </div>
+      )}
+
       {/* Day Overview Summary Card */}
-      <div className="p-4 rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent space-y-3">
+      <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0c121e] shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-emerald-500" />
-            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
               Focus Subject:
             </span>
             <span
               className="text-xs font-bold px-2 py-0.5 rounded-md"
               style={{
-                backgroundColor: focusSubject?.colour ? `${focusSubject.colour}20` : '#6366f120',
+                backgroundColor: focusSubject?.colour ? `${focusSubject.colour}15` : '#6366f115',
                 color: focusSubject?.colour ?? '#6366f1',
               }}
             >
@@ -172,7 +173,7 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
           <div
             className="bg-emerald-500 h-full rounded-full transition-all duration-300"
             style={{ width: `${metrics.completionPercentage}%` }}
@@ -190,12 +191,8 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
         </div>
       </div>
 
-      <div className="text-[11px] text-slate-400 italic text-center">
-        Tip: Swipe left or right to change days
-      </div>
-
       {/* Vertical Task Checklist with Routine Times */}
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {tasks.map((task) => {
           const override = dayPlan?.overrides[task.id];
           const isDone = override?.done ?? false;
@@ -203,7 +200,6 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
           const category = categories.find((c) => c.id === task.categoryId);
           const displayColor = task.colour || category?.colour || '#94a3b8';
 
-          // Find matching routine slot to show timetable time
           const linkedSlot = relevantRoutineSlots.find(
             (s) =>
               s.linkedTaskTemplateId === task.id ||
@@ -214,17 +210,17 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
             <div
               key={task.id}
               onClick={() => onToggleTask(currentDate, task.id)}
-              className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+              className={`p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
                 isDone
-                  ? 'border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-950/20'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c121e] hover:border-slate-300 dark:hover:border-slate-700'
+                  ? 'border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/15'
+                  : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0c121e] hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs'
               }`}
             >
               <div className="flex items-start gap-3 min-w-0">
                 <div
-                  className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-colors shrink-0 mt-0.5 ${
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all shrink-0 mt-0.5 ${
                     isDone
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
+                      ? 'bg-emerald-500 border-emerald-500 text-white animate-check-pop'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                   }`}
                 >
@@ -234,7 +230,7 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-sm font-semibold truncate ${
+                      className={`text-sm font-semibold truncate transition-colors ${
                         isDone
                           ? 'line-through text-slate-400 dark:text-slate-500'
                           : 'text-slate-900 dark:text-white'
@@ -250,17 +246,15 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
                     )}
                   </div>
 
-                  {/* Hint label */}
                   {hintLabel && (
                     <div className="text-xs italic text-slate-500 dark:text-slate-400 truncate mt-0.5">
                       · {hintLabel}
                     </div>
                   )}
 
-                  {/* Routine Time & Category */}
                   <div className="flex items-center gap-2 mt-1">
                     {linkedSlot && (
-                      <span className="flex items-center gap-1 font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      <span className="flex items-center gap-1 font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded">
                         <Clock className="w-3 h-3 text-emerald-500" />
                         {linkedSlot.startTime} - {linkedSlot.endTime}
                       </span>
@@ -274,7 +268,6 @@ export const MobileTodayView: React.FC<MobileTodayViewProps> = ({
                 </div>
               </div>
 
-              {/* Edit Hint Icon Button */}
               <button
                 type="button"
                 onClick={(e) => {

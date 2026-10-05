@@ -206,14 +206,17 @@ export const TrackerGrid: React.FC<TrackerGridProps> = ({
                 studyHoursWeekday,
                 studyHoursWeekend
               );
+              const isAllDone = metrics.totalTasks > 0 && metrics.doneCount === metrics.totalTasks;
 
               return (
                 <tr
                   key={dateStr}
-                  className={`transition-colors ${
-                    isToday
-                      ? 'bg-emerald-500/10 dark:bg-emerald-950/20 font-medium'
-                      : 'hover:bg-slate-50/80 dark:hover:bg-slate-850/50'
+                  className={`transition-colors duration-150 ${
+                    isAllDone
+                      ? 'bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] hover:bg-emerald-500/[0.08]'
+                      : isToday
+                      ? 'bg-emerald-500/10 dark:bg-emerald-950/20 font-medium hover:bg-emerald-500/15'
+                      : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                   }`}
                 >
                   {/* Sticky Date Column */}
@@ -229,8 +232,16 @@ export const TrackerGrid: React.FC<TrackerGridProps> = ({
                         {formatDisplayDate(dateStr)}
                       </span>
                       {isToday && (
-                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-emerald-500 text-white shadow-sm">
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-emerald-500 text-white shadow-xs">
                           Today
+                        </span>
+                      )}
+                      {isAllDone && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                          title="All tasks completed for this day!"
+                        >
+                          🎉 100%
                         </span>
                       )}
                       <span className="text-[10px] uppercase font-bold text-slate-400">
@@ -316,9 +327,11 @@ export const TrackerGrid: React.FC<TrackerGridProps> = ({
                       <span className="font-mono text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                         {metrics.completionPercentage}%
                       </span>
-                      {metrics.isStrong && (
+                      {isAllDone ? (
+                        <span title="Day Complete! 100% achieved" className="text-xs">🏆</span>
+                      ) : metrics.isStrong ? (
                         <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
-                      )}
+                      ) : null}
                     </div>
                   </td>
 

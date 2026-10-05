@@ -84,11 +84,8 @@ export const Sidebar: React.FC = () => {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white">plannrgraph</span>
-              <span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                PRO
-              </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium">Excel Tracker Replacer</p>
+            <p className="text-[11px] text-slate-400 font-medium">Study & Habit Planner</p>
           </div>
         </div>
       </div>

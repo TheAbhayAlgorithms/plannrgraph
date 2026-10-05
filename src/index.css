@@ -46,3 +46,51 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b888;
 }
+
+/* Tactile checkbox and tick animations */
+@keyframes checkPop {
+  0% {
+    transform: scale(0.65);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes tickRipple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes dayCelebrationGlow {
+  0%, 100% {
+    background-color: rgba(16, 185, 129, 0.04);
+  }
+  50% {
+    background-color: rgba(16, 185, 129, 0.12);
+  }
+}
+
+.animate-check-pop {
+  animation: checkPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-tick-ripple {
+  animation: tickRipple 0.4s ease-out;
+}
+
+.animate-day-celebrate {
+  animation: dayCelebrationGlow 2.5s ease-in-out infinite;
+}
