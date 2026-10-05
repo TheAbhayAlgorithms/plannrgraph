@@ -109,9 +109,7 @@ export const Header: React.FC<HeaderProps> = () => {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-sm">
               <Sparkles className="w-4 h-4" />
             </div>
-            <span className="font-bold text-sm text-slate-900 dark:text-white">
-              StudyFlow
-            </span>
+            <span className="font-bold text-sm text-slate-900 dark:text-white">plannrgraph</span>
           </div>
 
           {/* Today Date Pill */}

@@ -121,7 +121,7 @@ export const SettingsPage: React.FC = () => {
   const handleSendTestNotification = () => {
     playChimeSound();
     const sent = sendRoutineNotification(
-      'StudyFlow Reminder (Test)',
+      'plannrgraph Reminder (Test)',
       'Your routine notifications and study audio chimes are working smoothly!',
       { playSound: settings.soundEnabled !== false }
     );
@@ -234,7 +234,7 @@ export const SettingsPage: React.FC = () => {
     try {
       const dates = generateDateRange(settings.startDate, settings.endDate);
       const activeTasks = taskTemplates.filter((t) => t.active);
-      const filename = `studyflow-tracker-${getTodayDateString()}.xlsx`;
+      const filename = `plannrgraph-tracker-${getTodayDateString()}.xlsx`;
       exportTrackerToExcel(dates, activeTasks, dayPlans, subjects, filename);
       showToast({
         type: 'success',
@@ -255,7 +255,7 @@ export const SettingsPage: React.FC = () => {
       const dates = generateDateRange(settings.startDate, settings.endDate);
       const activeTasks = taskTemplates.filter((t) => t.active);
       const csv = generateTrackerCSV(dates, activeTasks, dayPlans, subjects);
-      const filename = `studyflow-tracker-${getTodayDateString()}.csv`;
+      const filename = `plannrgraph-tracker-${getTodayDateString()}.csv`;
       downloadCsvFile(csv, filename);
       showToast({
         type: 'success',
@@ -274,7 +274,7 @@ export const SettingsPage: React.FC = () => {
   const handleExportSyllabusCSV = () => {
     try {
       const csv = generateSyllabusCSV(subjects, topics);
-      const filename = `studyflow-syllabus-${getTodayDateString()}.csv`;
+      const filename = `plannrgraph-syllabus-${getTodayDateString()}.csv`;
       downloadCsvFile(csv, filename);
       showToast({
         type: 'success',
@@ -293,7 +293,7 @@ export const SettingsPage: React.FC = () => {
   const handleExportAssignmentsCSV = () => {
     try {
       const csv = generateAssignmentsCSV(assignments, subjects);
-      const filename = `studyflow-assignments-${getTodayDateString()}.csv`;
+      const filename = `plannrgraph-assignments-${getTodayDateString()}.csv`;
       downloadCsvFile(csv, filename);
       showToast({
         type: 'success',
@@ -312,7 +312,7 @@ export const SettingsPage: React.FC = () => {
   const handleExportResearchCSV = () => {
     try {
       const csv = generateResearchCSV(researchEntries);
-      const filename = `studyflow-research-${getTodayDateString()}.csv`;
+      const filename = `plannrgraph-research-${getTodayDateString()}.csv`;
       downloadCsvFile(csv, filename);
       showToast({
         type: 'success',
@@ -443,7 +443,7 @@ export const SettingsPage: React.FC = () => {
       success: 'Your changes were saved to persistent local storage.',
       error: 'Failed to process request. Please try again.',
       warning: 'Strong day threshold is currently set to 80%.',
-      info: 'StudyFlow Planner runs entirely offline in your browser.',
+      info: 'plannrgraph runs entirely offline in your browser.',
     };
 
     showToast({
@@ -1067,7 +1067,7 @@ export const SettingsPage: React.FC = () => {
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <div className="text-amber-700 dark:text-amber-300">
                   <span className="font-semibold">Browser permission required:</span> Allow desktop
-                  alerts so StudyFlow can remind you when routine blocks start.
+                  alerts so plannrgraph can remind you when routine blocks start.
                 </div>
                 <button
                   type="button"
@@ -1221,8 +1221,8 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isInstalled
-                    ? 'StudyFlow is running in standalone desktop/mobile app mode.'
-                    : 'Install StudyFlow to your home screen or dock for distraction-free offline studying.'}
+                    ? 'plannrgraph is running in standalone desktop/mobile app mode.'
+                    : 'Install plannrgraph to your home screen or dock for distraction-free offline studying.'}
                 </p>
               </div>
 
@@ -1233,7 +1233,7 @@ export const SettingsPage: React.FC = () => {
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition shrink-0"
                 >
                   <Smartphone className="w-4 h-4" />
-                  <span>Install StudyFlow App</span>
+                  <span>Install plannrgraph App</span>
                 </button>
               )}
             </div>

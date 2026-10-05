@@ -59,7 +59,7 @@ export function validatePlannerBackup(rawJson: string): ValidationResult {
       settings: {
         startDate: String(parsed.settings.startDate),
         endDate: String(parsed.settings.endDate),
-        theme: parsed.settings.theme === 'light' || parsed.settings.theme === 'dark' ? parsed.settings.theme : 'dark',
+        theme: parsed.settings.theme === 'light' || parsed.settings.theme === 'dark' ? parsed.settings.theme : 'light',
         studyHoursWeekday: Number(parsed.settings.studyHoursWeekday) || 2,
         studyHoursWeekend: Number(parsed.settings.studyHoursWeekend) || 8,
         researchHoursPerSession: Number(parsed.settings.researchHoursPerSession) || 2,
@@ -92,7 +92,7 @@ export function validatePlannerBackup(rawJson: string): ValidationResult {
  */
 export function getBackupFilename(): string {
   const todayStr = getTodayDateString();
-  return `studyflow-planner-backup-${todayStr}.json`;
+  return `plannrgraph-backup-${todayStr}.json`;
 }
 
 /**

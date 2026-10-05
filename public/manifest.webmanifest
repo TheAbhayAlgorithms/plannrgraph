@@ -1,6 +1,6 @@
 {
-  "name": "StudyFlow Planner",
-  "short_name": "StudyFlow",
+  "name": "plannrgraph",
+  "short_name": "plannrgraph",
   "description": "Daily routine, study timetable, project and progress tracker replacing Excel workbook",
   "start_url": "/",
   "scope": "/",

@@ -104,7 +104,7 @@ export function sendRoutineNotification(
         body,
         icon: '/icon-192.png',
         badge: '/favicon.svg',
-        tag: options?.slotId ? `routine-slot-${options.slotId}` : 'studyflow-reminder',
+        tag: options?.slotId ? `routine-slot-${options.slotId}` : 'plannrgraph-reminder',
       });
       return true;
     } catch (err) {

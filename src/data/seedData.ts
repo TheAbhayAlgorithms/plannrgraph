@@ -199,7 +199,7 @@ export function createInitialPlannerData(): PlannerData {
     settings: {
       startDate: '2026-10-04',
       endDate: '2026-10-30',
-      theme: 'dark',
+      theme: 'light',
       studyHoursWeekday: 2,
       studyHoursWeekend: 8,
       researchHoursPerSession: 2,

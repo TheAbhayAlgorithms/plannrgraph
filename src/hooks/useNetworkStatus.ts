@@ -21,7 +21,7 @@ export function useNetworkStatus() {
       setIsOnline(false);
       addToast({
         title: 'Offline Mode Active',
-        message: 'StudyFlow is fully available offline.',
+        message: 'plannrgraph is fully available offline.',
         type: 'info',
       });
     };

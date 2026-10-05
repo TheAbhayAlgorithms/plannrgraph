@@ -1,6 +1,6 @@
-# StudyFlow Planner 🎓⚡
+# plannrgraph 🎓⚡
 
-**StudyFlow Planner** is an all-in-one, fully editable daily-routine, study, project, and progress tracker built with modern client-side web technologies to replace complex Excel workbooks with a frictionless, responsive, and aesthetically stunning user experience.
+**plannrgraph** is an all-in-one, fully editable daily-routine, study, project, and progress tracker built with modern client-side web technologies to replace complex Excel workbooks with a frictionless, responsive, and aesthetically stunning user experience.
 
 ---
 
@@ -81,7 +81,7 @@ Open [http://localhost:5173/](http://localhost:5173/) in your browser.
 
 ## 🗄️ Data Model & LocalStorage Schema
 
-All planner data is stored in the browser's `localStorage` under the key `studyflow-planner-storage` with schema versioning:
+All planner data is stored in the browser's `localStorage` under the key `plannrgraph-storage` with schema versioning:
 
 ```ts
 interface PlannerData {

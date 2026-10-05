@@ -44,7 +44,7 @@ export function exportTrackerToExcel(
   tasks: TaskTemplate[],
   dayPlans: Record<string, DayPlan>,
   subjects: Subject[],
-  filename = `studyflow-tracker-${getTodayDateString()}.xlsx`
+  filename = `plannrgraph-tracker-${getTodayDateString()}.xlsx`
 ): void {
   const headers = ['Date', 'Day', 'Focus Subject', ...tasks.map((t) => t.name), 'Notes / Hints'];
 

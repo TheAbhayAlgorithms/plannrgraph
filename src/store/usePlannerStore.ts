@@ -121,9 +121,17 @@ const memoryStorage: Record<string, string> = {};
 const safeStorage = {
   getItem: (name: string): string | null => {
     if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(name);
+      const val = window.localStorage.getItem(name);
+      if (!val && name === 'plannrgraph-storage') {
+        return window.localStorage.getItem('studyflow-planner-storage');
+      }
+      return val;
     }
-    return memoryStorage[name] ?? null;
+    const memVal = memoryStorage[name];
+    if (!memVal && name === 'plannrgraph-storage') {
+      return memoryStorage['studyflow-planner-storage'] ?? null;
+    }
+    return memVal ?? null;
   },
   setItem: (name: string, value: string): void => {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -890,7 +898,7 @@ export const usePlannerStore = create<PlannerStoreState>()(
           settings: {
             startDate: '2026-10-04',
             endDate: '2026-10-30',
-            theme: 'dark',
+            theme: 'light',
             studyHoursWeekday: 2,
             studyHoursWeekend: 8,
             researchHoursPerSession: 2,
@@ -956,7 +964,7 @@ export const usePlannerStore = create<PlannerStoreState>()(
         }),
     }),
     {
-      name: 'studyflow-planner-storage',
+      name: 'plannrgraph-storage',
       version: 1,
       storage: createJSONStorage(() => safeStorage),
       partialize: (state) => {
